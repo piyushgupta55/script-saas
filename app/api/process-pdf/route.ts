@@ -89,18 +89,27 @@ ${chunk}`,
             // Validation
             if (!item.content || item.content.length < 5) continue;
 
-            // Save to knowledge_items table (Atomic)
+            // Save to knowledge_items table (Atomic with Deduplication)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
-              await supabaseAdmin
+              // Deduplication: Check if content already exists
+              const { data: existing } = await supabaseAdmin
                 .from('knowledge_items')
-                .insert([{
-                  type: item.type,
-                  content: item.content,
-                  category: item.category,
-                  tone: item.tone,
-                  source: item.source || 'uploaded_pdf',
-                  quality_score: item.quality_score || 50
-                }]);
+                .select('id')
+                .eq('content', item.content)
+                .single();
+
+              if (!existing) {
+                await supabaseAdmin
+                  .from('knowledge_items')
+                  .insert([{
+                    type: item.type,
+                    content: item.content,
+                    category: item.category,
+                    tone: item.tone,
+                    source: item.source || 'uploaded_pdf',
+                    quality_score: item.quality_score || 50
+                  }]);
+              }
             }
 
             // Map to finalData for immediate UI response
