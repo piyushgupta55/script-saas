@@ -112,15 +112,17 @@ ${chunk}`,
               console.error('Scoring error:', err);
             }
 
-            // Save to knowledge_items table (Atomic with Deduplication)
+            // Save to knowledge_items table (Atomic with Smart Deduplication)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
-              const { data: existing } = await supabaseAdmin
+              // Smart Deduplication: Check for similar content
+              const partialContent = item.content.slice(0, 20);
+              const { data: similar } = await supabaseAdmin
                 .from('knowledge_items')
                 .select('id')
-                .eq('content', item.content)
-                .single();
+                .ilike('content', `%${partialContent}%`)
+                .limit(1);
 
-              if (!existing) {
+              if (!similar || similar.length === 0) {
                 await supabaseAdmin
                   .from('knowledge_items')
                   .insert([{
