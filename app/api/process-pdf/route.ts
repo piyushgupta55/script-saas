@@ -1,3 +1,4 @@
+// Forced rebuild to ensure latest pdf-parse fix is active
 import { NextRequest, NextResponse } from 'next/server';
 import { PDFParse } from 'pdf-parse';
 import OpenAI from 'openai';
