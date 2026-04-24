@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
             {
               role: 'system',
               content: `You are a strict data extraction engine designed to populate a structured database. 
-Your task is to extract atomic script-writing knowledge from the given text and return it in a database-ready JSON format.`,
+Your task is to extract atomic script-writing knowledge and rate its quality (1-100).`,
             },
             {
               role: 'user',
@@ -64,32 +64,14 @@ Each item must follow this structure:
   "content": "string (short, atomic, 1 idea only)",
   "category": "short_form | long_form | general",
   "tone": "optional (funny, serious, storytelling, etc or null)",
-  "source": "string (book name)"
+  "source": "string (book name)",
+  "quality_score": number (1-100 based on virality and clarity)
 }
 
-WHAT TO EXTRACT:
-- Hooks → attention-grabbing lines or formulas
-- Rules → clear writing principles
-- Structures → storytelling frameworks or sequences
-- Examples → only if clearly present
-
 STRICT RULES:
-- Extract ONLY what is explicitly written in the text
-- DO NOT generate, infer, or hallucinate
-- DO NOT rewrite creatively
-- Each "content" must be SHORT (max 1–2 lines)
-- One idea per item (atomic)
-- DO NOT include explanations or paragraphs
-- Skip anything unclear or vague
-- Avoid duplicates within the same response
-
-CATEGORY MAPPING:
-- If content is for short videos → "short_form"
-- If content is for long storytelling → "long_form"
-- Otherwise → "general"
-
-OUTPUT FORMAT (MANDATORY):
-Return ONLY valid JSON array. No explanation. No markdown.
+- Extract ONLY explicit knowledge.
+- Rate quality_score based on how actionable and viral the advice is.
+- Return ONLY a valid JSON array.
 
 TEXT TO PROCESS:
 ${chunk}`,
@@ -104,6 +86,24 @@ ${chunk}`,
           const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
           
           for (const item of items) {
+            // Validation
+            if (!item.content || item.content.length < 5) continue;
+
+            // Save to knowledge_items table (Atomic)
+            if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
+              await supabaseAdmin
+                .from('knowledge_items')
+                .insert([{
+                  type: item.type,
+                  content: item.content,
+                  category: item.category,
+                  tone: item.tone,
+                  source: item.source || 'uploaded_pdf',
+                  quality_score: item.quality_score || 50
+                }]);
+            }
+
+            // Map to finalData for immediate UI response
             if (item.type === 'hook') finalData.hooks.push(item.content);
             if (item.type === 'rule') finalData.rules.push(item.content);
             if (item.type === 'structure') finalData.structures.push(item.content);
