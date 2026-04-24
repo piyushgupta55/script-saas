@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, knowledge, platform, tone, length } = await req.json();
+    const { prompt, knowledge, platform, tone, length, language } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -18,9 +18,19 @@ export async function POST(req: NextRequest) {
     const selectedStructures = knowledge?.structures?.slice(0, 3).join('\n') || 'Standard hook, body, CTA structure.';
     const hookInspiration = knowledge?.hooks?.slice(0, 10).join('\n') || '';
 
+    const languageInstruction = language === 'Hinglish' 
+      ? `OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English)
+RULES FOR HINGLISH:
+- Use Roman script only (no Hindi script/Devanagari).
+- Mix Hindi and English naturally, the way creators speak on Instagram/YouTube.
+- Avoid formal language. Keep it casual and conversational.
+- Example Style: "Aaj maine ek mistake ki jo shayad tum bhi kar rahe ho..." or "Main poora din bas phone scroll karta raha..."`
+      : 'OUTPUT LANGUAGE: English (Standard creator style)';
+
     const systemPrompt = `You are a world-class viral script writer for ${platform || 'short-form video'}. 
 Your tone is ${tone || 'energetic and engaging'}. 
 Target length: ${length || '60 seconds'}.
+${languageInstruction}
 
 SCRIPTRITING RULES TO FOLLOW:
 ${selectedRules}

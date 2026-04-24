@@ -12,6 +12,7 @@ export default function Home() {
   const [platform, setPlatform] = useState('Instagram Reel');
   const [tone, setTone] = useState('High Energy');
   const [length, setLength] = useState('60 seconds');
+  const [language, setLanguage] = useState('English');
   const [generatedData, setGeneratedData] = useState<any>(null);
   const [genLoading, setGenLoading] = useState(false);
 
@@ -50,7 +51,7 @@ export default function Home() {
       const res = await fetch('/api/generate-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, knowledge, platform, tone, length }),
+        body: JSON.stringify({ prompt, knowledge, platform, tone, length, language }),
       });
       const result = await res.json();
       if (result.script) {
@@ -132,6 +133,14 @@ export default function Home() {
                     <option>Serious/Alpha</option>
                   </select>
                 </div>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: '#888' }}>LANGUAGE</label>
+                <select value={language} onChange={(e) => setLanguage(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '0.8rem', color: 'white' }}>
+                  <option>English</option>
+                  <option>Hinglish</option>
+                </select>
               </div>
 
               <button 
