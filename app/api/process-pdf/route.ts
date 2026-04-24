@@ -112,7 +112,7 @@ ${chunk}`,
               console.error('Scoring error:', err);
             }
 
-            // Save to knowledge_items table (Atomic with Smart Deduplication)
+            // Save to knowledge_items table (Atomic with Smart Deduplication & Embeddings)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
               // Smart Deduplication: Check for similar content
               const partialContent = item.content.slice(0, 20);
@@ -125,6 +125,18 @@ ${chunk}`,
               if (!similar || similar.length === 0) {
                 // Minimum Quality Filter: Don't store junk (score < 6)
                 if (finalScore >= 60) {
+                  // Generate Embedding
+                  let embedding = null;
+                  try {
+                    const embRes = await openai.embeddings.create({
+                      model: 'text-embedding-3-small',
+                      input: item.content,
+                    });
+                    embedding = embRes.data[0].embedding;
+                  } catch (e) {
+                    console.error('Embedding error:', e);
+                  }
+
                   await supabaseAdmin
                     .from('knowledge_items')
                     .insert([{
@@ -133,7 +145,8 @@ ${chunk}`,
                       category: item.category,
                       tone: item.tone,
                       source: item.source || 'uploaded_pdf',
-                      quality_score: finalScore
+                      quality_score: finalScore,
+                      embedding: embedding
                     }]);
                 }
               }

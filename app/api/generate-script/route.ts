@@ -14,19 +14,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Step 1: Fetch TOP-TIER knowledge from the global database
+    // Step 1: Embed the user's prompt for semantic search
+    let queryEmbedding = null;
+    try {
+      const embRes = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: prompt,
+      });
+      queryEmbedding = embRes.data[0].embedding;
+    } catch (e) {
+      console.error('Embedding error in generator:', e);
+    }
+
+    // Step 2: Fetch semantically relevant TOP-TIER knowledge
     const category = platform.toLowerCase().includes('reel') || platform.toLowerCase().includes('tiktok') || platform.toLowerCase().includes('short') 
       ? 'short_form' 
       : 'general';
 
-    const { data: dbKnowledge } = await supabase
-      .from('knowledge_items')
-      .select('type, content')
-      .eq('category', category)
-      .order('quality_score', { ascending: false })
-      .limit(30);
+    let dbKnowledge: any[] = [];
+    if (queryEmbedding) {
+      const { data, error } = await supabase.rpc('match_knowledge_items', {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.2, // Catch anything even slightly relevant
+        match_count: 30,
+        p_category: category
+      });
+      if (!error) dbKnowledge = data;
+    }
 
-    // Step 2: Organize fetched knowledge
+    // Fallback if vector search yields nothing or fails
+    if (dbKnowledge.length === 0) {
+      const { data } = await supabase
+        .from('knowledge_items')
+        .select('type, content')
+        .eq('category', category)
+        .order('quality_score', { ascending: false })
+        .limit(30);
+      dbKnowledge = data || [];
+    }
+
+    // Step 3: Organize fetched knowledge
     const rules = dbKnowledge?.filter(k => k.type === 'rule').map(k => k.content).slice(0, 10) || [];
     const structures = dbKnowledge?.filter(k => k.type === 'structure').map(k => k.content).slice(0, 3) || [];
     const hooks = dbKnowledge?.filter(k => k.type === 'hook').map(k => k.content).slice(0, 10) || [];
