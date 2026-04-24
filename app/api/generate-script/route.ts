@@ -26,37 +26,41 @@ export async function POST(req: NextRequest) {
       console.error('Embedding error in generator:', e);
     }
 
-    // Step 2: Fetch semantically relevant TOP-TIER knowledge
+    // Step 2: Fetch semantically relevant TOP-TIER knowledge (Targeted by Type)
     const category = platform.toLowerCase().includes('reel') || platform.toLowerCase().includes('tiktok') || platform.toLowerCase().includes('short') 
       ? 'short_form' 
       : 'general';
 
-    let dbKnowledge: any[] = [];
-    if (queryEmbedding) {
+    const fetchItems = async (type: string, count: number) => {
+      if (!queryEmbedding) return [];
       const { data, error } = await supabase.rpc('match_knowledge_items', {
         query_embedding: queryEmbedding,
-        match_threshold: 0.2, // Catch anything even slightly relevant
-        match_count: 30,
+        match_threshold: 0.1,
+        match_count: count * 3, // Fetch more to filter by type
         p_category: category
       });
-      if (!error) dbKnowledge = data;
-    }
+      if (error || !data) return [];
+      return data.filter((item: any) => item.type === type).slice(0, count).map((item: any) => item.content);
+    };
 
-    // Fallback if vector search yields nothing or fails
-    if (dbKnowledge.length === 0) {
+    const rules = await fetchItems('rule', 10);
+    const structures = await fetchItems('structure', 3);
+    const hooks = await fetchItems('hook', 10);
+
+    // Fallback logic remains if everything is empty
+    if (rules.length === 0 && structures.length === 0 && hooks.length === 0) {
       const { data } = await supabase
         .from('knowledge_items')
         .select('type, content')
         .eq('category', category)
         .order('quality_score', { ascending: false })
         .limit(30);
-      dbKnowledge = data || [];
+      
+      const fallback = data || [];
+      rules.push(...fallback.filter(k => k.type === 'rule').map(k => k.content).slice(0, 10));
+      structures.push(...fallback.filter(k => k.type === 'structure').map(k => k.content).slice(0, 3));
+      hooks.push(...fallback.filter(k => k.type === 'hook').map(k => k.content).slice(0, 10));
     }
-
-    // Step 3: Organize fetched knowledge
-    const rules = dbKnowledge?.filter(k => k.type === 'rule').map(k => k.content).slice(0, 10) || [];
-    const structures = dbKnowledge?.filter(k => k.type === 'structure').map(k => k.content).slice(0, 3) || [];
-    const hooks = dbKnowledge?.filter(k => k.type === 'hook').map(k => k.content).slice(0, 10) || [];
 
     const languageInstruction = language === 'Hinglish' 
       ? `OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English)
