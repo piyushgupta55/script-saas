@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { supabase } from '@/lib/supabase';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,56 +8,57 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, knowledge, platform, tone, length, language } = await req.json();
+    const { prompt, platform, tone, length, language } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Filter knowledge to avoid noise
-    const selectedRules = knowledge?.rules?.slice(0, 8).join('\n') || 'Write engagingly.';
-    const selectedStructures = knowledge?.structures?.slice(0, 3).join('\n') || 'Standard hook, body, CTA structure.';
-    const hookInspiration = knowledge?.hooks?.slice(0, 10).join('\n') || '';
+    // Step 1: Fetch TOP-TIER knowledge from the global database
+    const category = platform.toLowerCase().includes('reel') || platform.toLowerCase().includes('tiktok') || platform.toLowerCase().includes('short') 
+      ? 'short_form' 
+      : 'general';
+
+    const { data: dbKnowledge } = await supabase
+      .from('knowledge_items')
+      .select('type, content')
+      .eq('category', category)
+      .order('quality_score', { ascending: false })
+      .limit(30);
+
+    // Step 2: Organize fetched knowledge
+    const rules = dbKnowledge?.filter(k => k.type === 'rule').map(k => k.content).slice(0, 10) || [];
+    const structures = dbKnowledge?.filter(k => k.type === 'structure').map(k => k.content).slice(0, 3) || [];
+    const hooks = dbKnowledge?.filter(k => k.type === 'hook').map(k => k.content).slice(0, 10) || [];
 
     const languageInstruction = language === 'Hinglish' 
       ? `OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English)
 RULES FOR HINGLISH:
-- Use Roman script only (no Hindi script/Devanagari).
-- Mix Hindi and English naturally, the way creators speak on Instagram/YouTube.
-- Avoid formal language. Keep it casual and conversational.
-- Example Style: "Aaj maine ek mistake ki jo shayad tum bhi kar rahe ho..." or "Main poora din bas phone scroll karta raha..."`
+- Use Roman script only. No Hindi script.
+- Mix Hindi and English naturally (creator style).
+- Example: "Aaj maine ek mistake ki jo shayad tum bhi kar rahe ho..."`
       : 'OUTPUT LANGUAGE: English (Standard creator style)';
 
-    const systemPrompt = `You are a world-class viral script writer for ${platform || 'short-form video'}. 
-Your tone is ${tone || 'energetic and engaging'}. 
-Target length: ${length || '60 seconds'}.
+    const systemPrompt = `You are a world-class viral script writer for ${platform}. 
+Your tone is ${tone}. 
+Target length: ${length}.
 ${languageInstruction}
 
-SCRIPTRITING RULES TO FOLLOW:
-${selectedRules}
+WORLD-CLASS WRITING RULES (Top Scored):
+${rules.join('\n') || 'Write engagingly.'}
 
-STRUCTURES TO USE:
-${selectedStructures}
+VIRAL STRUCTURES (Top Scored):
+${structures.join('\n') || 'Standard hook, body, CTA.'}
 
-INSPIRATIONAL HOOKS FROM DATABASE:
-${hookInspiration}
+INSPIRATIONAL HOOKS:
+${hooks.join('\n')}
 
 TASK:
-1. Generate 5 distinct VIRAL HOOK options based on the following categories: Shock, Curiosity, Question, Relatable Pain, and Contrarian.
-2. Generate one complete, high-retention SCRIPT based on the user's prompt.
+1. Generate 5 VIRAL HOOK options (Shock, Curiosity, Question, Relatable Pain, Contrarian).
+2. Generate one complete, high-retention SCRIPT.
 
 RESPONSE FORMAT:
-You must return a JSON object with this exact structure:
-{
-  "hooks": {
-    "shock": "...",
-    "curiosity": "...",
-    "question": "...",
-    "relatable_pain": "...",
-    "contrarian": "..."
-  },
-  "script": "..."
-}`;
+JSON object with {"hooks": {"shock": "...", ...}, "script": "..."}`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
