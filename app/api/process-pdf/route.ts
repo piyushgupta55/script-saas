@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,9 +20,11 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Extract text from PDF
-    const data = await pdf(buffer);
-    let text = data.text;
+    // Extract text from PDF using the new PDFParse API
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    let text = result.text;
+    await parser.destroy();
 
     // Clean text
     text = text.replace(/\s+/g, ' ').trim();
