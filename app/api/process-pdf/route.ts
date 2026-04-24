@@ -89,9 +89,31 @@ ${chunk}`,
             // Validation
             if (!item.content || item.content.length < 5) continue;
 
+            // Dedicated Scoring Pass (as requested: cheap + fast)
+            let finalScore = 50; // Default
+            try {
+              const scoreResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini', // Using mini for speed and cost
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'You are a strict evaluator for viral script writing knowledge. Score based on Clarity, Practicality, and Impact.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Score this item (1-10): "${item.content}". Return ONLY JSON: {"score": number}`,
+                  },
+                ],
+                response_format: { type: 'json_object' },
+              });
+              const scoreContent = JSON.parse(scoreResponse.choices[0].message.content || '{}');
+              finalScore = (scoreContent.score || 5) * 10; // Normalize to 1-100
+            } catch (err) {
+              console.error('Scoring error:', err);
+            }
+
             // Save to knowledge_items table (Atomic with Deduplication)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
-              // Deduplication: Check if content already exists
               const { data: existing } = await supabaseAdmin
                 .from('knowledge_items')
                 .select('id')
@@ -107,7 +129,7 @@ ${chunk}`,
                     category: item.category,
                     tone: item.tone,
                     source: item.source || 'uploaded_pdf',
-                    quality_score: item.quality_score || 50
+                    quality_score: finalScore
                   }]);
               }
             }
