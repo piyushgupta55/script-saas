@@ -123,16 +123,19 @@ ${chunk}`,
                 .limit(1);
 
               if (!similar || similar.length === 0) {
-                await supabaseAdmin
-                  .from('knowledge_items')
-                  .insert([{
-                    type: item.type,
-                    content: item.content,
-                    category: item.category,
-                    tone: item.tone,
-                    source: item.source || 'uploaded_pdf',
-                    quality_score: finalScore
-                  }]);
+                // Minimum Quality Filter: Don't store junk (score < 6)
+                if (finalScore >= 60) {
+                  await supabaseAdmin
+                    .from('knowledge_items')
+                    .insert([{
+                      type: item.type,
+                      content: item.content,
+                      category: item.category,
+                      tone: item.tone,
+                      source: item.source || 'uploaded_pdf',
+                      quality_score: finalScore
+                    }]);
+                }
               }
             }
 
