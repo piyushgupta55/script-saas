@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 // @ts-ignore
 import PDFParse from 'pdf-parse'
 
-// Vercel config to increase timeout (up to 60s on Pro, max available on Hobby)
-export const maxDuration = 60;
+// Vercel config to increase timeout (up to 300s on Pro)
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 const openai = new OpenAI({
@@ -81,11 +81,11 @@ export async function POST(req: NextRequest) {
     let totalExtracted = 0
 
     // 4. Process Chunks in Parallel Batches
-    const batchSize = 5
+    const batchSize = 10
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize)
       
-      await Promise.all(batch.map(async (chunk, index) => {
+      await Promise.all(batch.map(async (chunk) => {
         try {
           const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
