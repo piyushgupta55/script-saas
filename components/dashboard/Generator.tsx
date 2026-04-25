@@ -33,6 +33,7 @@ interface GeneratorProps {
 export default function Generator(props: GeneratorProps) {
   const [controlsOpen, setControlsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState<'input' | 'output'>('input');
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -41,9 +42,62 @@ export default function Generator(props: GeneratorProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  useEffect(() => {
+    if (props.output && isMobile) {
+      setActiveTab('output');
+    }
+  }, [props.output, isMobile]);
+
   return (
-    <div className="generator-view">
-      <div className="view-header">
+    <div className="generator-view" style={{ background: '#050505', color: '#fff' }}>
+      {/* Mobile Tab Navigation */}
+      {isMobile && (
+        <div style={{
+          display: 'flex',
+          background: '#000',
+          borderBottom: '1px solid #222',
+          position: 'sticky',
+          top: '0',
+          zIndex: 1000
+        }}>
+          <button 
+            onClick={() => setActiveTab('input')}
+            style={{
+              flex: 1,
+              padding: '16px',
+              background: 'transparent',
+              border: 'none',
+              color: activeTab === 'input' ? '#c5ff00' : '#444',
+              borderBottom: activeTab === 'input' ? '2px solid #c5ff00' : 'none',
+              fontSize: '10px',
+              fontWeight: '900',
+              fontFamily: 'JetBrains Mono, monospace'
+            }}
+          >
+            01 // DRAFTING_CORE
+          </button>
+          <button 
+            onClick={() => setActiveTab('output')}
+            style={{
+              flex: 1,
+              padding: '16px',
+              background: 'transparent',
+              border: 'none',
+              color: activeTab === 'output' ? '#c5ff00' : '#444',
+              borderBottom: activeTab === 'output' ? '2px solid #c5ff00' : 'none',
+              fontSize: '10px',
+              fontWeight: '900',
+              fontFamily: 'JetBrains Mono, monospace',
+              opacity: !props.output ? 0.3 : 1
+            }}
+            disabled={!props.output}
+          >
+            02 // FINAL_LOGIC
+          </button>
+        </div>
+      )}
+
+      <div className="view-header" style={isMobile ? { padding: '16px 20px', borderBottom: '1px solid #111' } : {}}>
         <div>
           <h1 className="mono">00 // LOGIC_ENGINE</h1>
           <p className="mono text-xxs text-muted">SYSTEM_STABILITY: NOMINAL // LATENCY: 12.4ms</p>
@@ -56,39 +110,47 @@ export default function Generator(props: GeneratorProps) {
         </div>
       </div>
 
-      <div className="generator-grid">
+      <div className="generator-grid" style={isMobile ? { display: 'block', padding: '0' } : {}}>
         {/* Left Column: Input + Controls */}
-        <div className="input-column">
+        <div className="input-column" style={isMobile ? { 
+          display: activeTab === 'input' ? 'flex' : 'none',
+          padding: '24px',
+          background: '#050505',
+          height: 'auto',
+          minHeight: 'calc(100vh - 120px)'
+        } : {}}>
           <div className="input-group">
-            <div className="mono text-xs text-primary mb-12">&gt; DEFINE_INPUT_CORE</div>
+            <div className="mono text-xs text-primary mb-12" style={{ fontSize: '10px' }}>&gt; CORE_INTENT_INPUT</div>
             <textarea 
               className="main-input" 
+              style={isMobile ? { minHeight: '180px', fontSize: '1rem', padding: '20px' } : {}}
               placeholder="Inject your core idea... (e.g. 'Why most startups fail in the first year')"
               value={props.prompt}
               onChange={(e) => props.setPrompt(e.target.value)}
             />
           </div>
 
-          <div className="controls-panel">
+          <div className="controls-panel" style={isMobile ? { border: '1px solid #111' } : {}}>
             <button 
               className="controls-toggle mono"
               onClick={() => setControlsOpen(!controlsOpen)}
+              style={isMobile ? { padding: '14px', fontSize: '9px' } : {}}
             >
               {controlsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              01 // GEN_PARAMETERS
+              GEN_PARAMETERS
             </button>
             
             {controlsOpen && (
               <div className="controls-grid">
-                <div className="control-item">
-                  <label className="mono text-xxs">PLATFORM_TYPE</label>
+                <div className="control-item" style={isMobile ? { padding: '15px' } : {}}>
+                  <label className="mono text-xxs" style={{ fontSize: '8px' }}>PLATFORM</label>
                   <select value={props.platform} onChange={(e) => props.setPlatform(e.target.value)}>
                     <option>Reel</option>
                     <option>YouTube</option>
                   </select>
                 </div>
-                <div className="control-item">
-                  <label className="mono text-xxs">LOGIC_TONE</label>
+                <div className="control-item" style={isMobile ? { padding: '15px' } : {}}>
+                  <label className="mono text-xxs" style={{ fontSize: '8px' }}>TONE</label>
                   <select value={props.tone} onChange={(e) => props.setTone(e.target.value)}>
                     <option>Storytelling</option>
                     <option>Aggressive</option>
@@ -96,16 +158,16 @@ export default function Generator(props: GeneratorProps) {
                     <option>Educational</option>
                   </select>
                 </div>
-                <div className="control-item">
-                  <label className="mono text-xxs">TEMPORAL_LENGTH</label>
+                <div className="control-item" style={isMobile ? { padding: '15px' } : {}}>
+                  <label className="mono text-xxs" style={{ fontSize: '8px' }}>LENGTH</label>
                   <select value={props.length} onChange={(e) => props.setLength(e.target.value)}>
                     <option>30s</option>
                     <option>60s</option>
                     <option>Long</option>
                   </select>
                 </div>
-                <div className="control-item">
-                  <label className="mono text-xxs">LINGUISTIC_MODE</label>
+                <div className="control-item" style={isMobile ? { padding: '15px' } : {}}>
+                  <label className="mono text-xxs" style={{ fontSize: '8px' }}>LANGUAGE</label>
                   <select value={props.language} onChange={(e) => props.setLanguage(e.target.value)}>
                     <option>Hinglish</option>
                     <option>English</option>
@@ -124,46 +186,48 @@ export default function Generator(props: GeneratorProps) {
               right: '24px',
               width: 'calc(100% - 48px)',
               zIndex: 9999,
-              display: 'flex',
+              display: activeTab === 'input' ? 'flex' : 'none',
               justifyContent: 'center',
-              boxShadow: '0 0 30px rgba(197, 255, 0, 0.4)',
-              padding: '20px',
-              fontSize: '14px'
+              boxShadow: '0 0 40px rgba(197, 255, 0, 0.4)',
+              padding: '22px',
+              fontSize: '14px',
+              border: 'none'
             } : {}}
             onClick={props.handleGenerate}
             disabled={props.loading}
           >
             {props.loading ? (
-              <>ATOMIZING_CONTEXT... <Activity size={18} className="animate-spin" /></>
+              <>PROCESSING_LOGIC... <Activity size={18} className="animate-spin" /></>
             ) : (
-              <>INITIALIZE_LOGIC <Zap size={18} /></>
+              <>INITIALIZE_ENGINE <Zap size={18} /></>
             )}
           </button>
         </div>
 
         {/* Right Column: Output Panel */}
-        <div className="output-column">
+        <div className="output-column" style={isMobile ? { 
+          display: activeTab === 'output' ? 'block' : 'none',
+          padding: '24px',
+          background: '#000',
+          minHeight: 'calc(100vh - 120px)'
+        } : {}}>
           {!props.output ? (
-            <div className="output-empty">
-              <div className="empty-icon-box">
-                <Terminal size={48} />
+            <div className="output-empty" style={isMobile ? { padding: '40px 0' } : {}}>
+              <div className="empty-icon-box" style={isMobile ? { width: '80px', height: '80px' } : {}}>
+                <Terminal size={40} />
               </div>
-              <p className="mono text-sm text-muted">AWAITING_NEURAL_COMMAND...</p>
-              <div className="code-log-preview">
-                <span className="mono text-xxs opacity-20">&gt; SYSTEM_IDLE</span> <br />
-                <span className="mono text-xxs opacity-20">&gt; LISTENING_FOR_HOOK_SIGNALS</span>
-              </div>
+              <p className="mono text-sm text-muted" style={{ fontSize: '10px' }}>AWAITING_CORE_COMMAND...</p>
             </div>
           ) : (
             <div className="output-content">
               {/* Hooks Section */}
-              <div className="output-section hooks-section">
-                <div className="mono text-xs text-primary mb-12">02 // VIRAL_HOOK_VARIANTS</div>
+              <div className="output-section hooks-section" style={isMobile ? { padding: '24px', marginBottom: '24px' } : {}}>
+                <div className="mono text-xs text-primary mb-12" style={{ fontSize: '10px' }}>02 // VIRAL_HOOK_NODES</div>
                 <div className="hooks-list">
                   {props.output.hooks.map((h, i) => (
-                    <div key={i} className="hook-item">
+                    <div key={i} className="hook-item" style={isMobile ? { padding: '16px', fontSize: '13px' } : {}}>
                       <span className="hook-text">{h}</span>
-                      <button className="copy-btn" onClick={() => props.copyToClipboard(h)} title="Copy Hook">
+                      <button className="copy-btn" onClick={() => props.copyToClipboard(h)}>
                         <Copy size={14} />
                       </button>
                     </div>
@@ -172,22 +236,22 @@ export default function Generator(props: GeneratorProps) {
               </div>
 
               {/* Script Section */}
-              <div className="script-premium-container">
+              <div className="script-premium-container" style={isMobile ? { padding: '30px 20px', gap: '24px' } : {}}>
                 <div className="script-premium-header">
-                  <div className="mono text-xxs">DATE: <span className="text-white">{new Date().toLocaleDateString()}</span></div>
-                  <div className="mono text-xxs">PLATFORM: <span className="text-primary">{props.platform.toUpperCase()}</span></div>
+                  <div className="mono text-xxs" style={{ fontSize: '8px' }}>DATE: <span className="text-white">{new Date().toLocaleDateString()}</span></div>
+                  <div className="mono text-xxs" style={{ fontSize: '8px' }}>PLATFORM: <span className="text-primary">{props.platform.toUpperCase()}</span></div>
                 </div>
                 
-                <div className="script-premium-body mono">
+                <div className="script-premium-body mono" style={isMobile ? { fontSize: '1.05rem', lineHeight: '1.7' } : {}}>
                   {props.output.script}
                 </div>
 
-                <div className="script-premium-footer">
-                   <button onClick={props.handleGenerate} className="premium-action-btn">
-                     <RefreshCw size={14} /> REUSE
+                <div className="script-premium-footer" style={isMobile ? { flexDirection: 'column' } : {}}>
+                   <button onClick={props.handleGenerate} className="premium-action-btn" style={isMobile ? { width: '100%', justifyContent: 'center', padding: '16px' } : {}}>
+                     <RefreshCw size={14} /> RE_ENGINEER
                    </button>
-                   <button onClick={() => props.copyToClipboard(props.output!.script)} className="premium-action-btn">
-                     <Copy size={14} /> COPY_SCRIPT
+                   <button onClick={() => props.copyToClipboard(props.output!.script)} className="premium-action-btn" style={isMobile ? { width: '100%', justifyContent: 'center', padding: '16px' } : {}}>
+                     <Copy size={14} /> COPY_ENGINEERED_SCRIPT
                    </button>
                 </div>
               </div>
