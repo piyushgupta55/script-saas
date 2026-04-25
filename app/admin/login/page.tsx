@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
             email, 
             password,
             options: {
-              emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/admin` : undefined
+              emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback?next=/admin` : undefined
             }
           })
         : await supabase.auth.signInWithPassword({ email, password });
