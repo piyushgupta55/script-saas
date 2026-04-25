@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 // @ts-ignore
 import PDFParse from 'pdf-parse'
 
+// Vercel config to increase timeout (up to 60s on Pro, max available on Hobby)
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
@@ -76,36 +80,41 @@ export async function POST(req: NextRequest) {
 
     let totalExtracted = 0
 
-    // 4. Process Chunks
-    for (let i = 0; i < chunks.length; i++) {
-      try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: extractionPrompt },
-            { role: 'user', content: chunks[i] }
-          ],
-          response_format: { type: 'json_object' }
-        })
+    // 4. Process Chunks in Parallel Batches
+    const batchSize = 5
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize)
+      
+      await Promise.all(batch.map(async (chunk, index) => {
+        try {
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: extractionPrompt },
+              { role: 'user', content: chunk }
+            ],
+            response_format: { type: 'json_object' }
+          })
 
-        const content = response.choices[0].message.content
-        if (!content) continue
+          const content = response.choices[0].message.content
+          if (!content) return
 
-        const chunkResult = JSON.parse(content)
-        const patterns = Array.isArray(chunkResult) ? chunkResult : (chunkResult.patterns || [])
+          const chunkResult = JSON.parse(content)
+          const patterns = Array.isArray(chunkResult) ? chunkResult : (chunkResult.patterns || [])
 
-        for (const pattern of patterns) {
-          const { error } = await supabase.from('knowledge_items').insert([{
-            ...pattern,
-            source: source || file.name,
-            quality_score: 0,
-            is_active: true
-          }])
-          if (!error) totalExtracted++
+          for (const pattern of patterns) {
+            const { error } = await supabase.from('knowledge_items').insert([{
+              ...pattern,
+              source: source || file.name,
+              quality_score: 0,
+              is_active: true
+            }])
+            if (!error) totalExtracted++
+          }
+        } catch (e) {
+          console.error(`Error processing chunk in batch ${i}:`, e)
         }
-      } catch (e) {
-        console.error(`Error processing chunk ${i}:`, e)
-      }
+      }))
     }
 
     return NextResponse.json({ 
