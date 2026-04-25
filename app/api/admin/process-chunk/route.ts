@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: extractionPrompt || 'Extract viral patterns from text.' },
+        { role: 'system', content: extractionPrompt || 'Extract viral patterns from text and return as a JSON object.' },
         { role: 'user', content: chunk }
       ],
       response_format: { type: 'json_object' }
