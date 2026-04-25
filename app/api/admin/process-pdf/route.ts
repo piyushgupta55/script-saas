@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+// @ts-ignore
 import PDFParse from 'pdf-parse'
 
 const openai = new OpenAI({
