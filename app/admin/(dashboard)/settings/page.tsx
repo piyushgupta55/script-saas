@@ -18,6 +18,8 @@ export default function SettingsPage() {
   const [source, setSource] = useState('')
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle')
   const [progress, setProgress] = useState(0)
+  const [currentChunk, setCurrentChunk] = useState(0)
+  const [totalChunks, setTotalChunks] = useState(0)
   const [summary, setSummary] = useState<{ totalExtracted: number; totalChunks: number } | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -26,6 +28,7 @@ export default function SettingsPage() {
       setFile(e.target.files[0])
       setStatus('idle')
       setSummary(null)
+      setProgress(0)
     }
   }
 
@@ -33,28 +36,70 @@ export default function SettingsPage() {
     if (!file) return
 
     setStatus('processing')
-    setProgress(10)
-
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('source', source)
-
+    setProgress(0)
+    
     try {
-      const res = await fetch('/api/admin/process-pdf', {
-        method: 'POST',
-        body: formData
-      })
+      // 1. Initialize PDF.js
+      const pdfjs = await import('pdfjs-dist')
+      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
-      const data = await res.json()
+      // 2. Read PDF locally
+      const arrayBuffer = await file.arrayBuffer()
+      const loadingTask = pdfjs.getDocument({ data: arrayBuffer })
+      const pdf = await loadingTask.promise
+      
+      let fullText = ''
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i)
+        const textContent = await page.getTextContent()
+        const pageText = textContent.items.map((item: any) => item.str).join(' ')
+        fullText += pageText + '\n'
+        
+        // Update local reading progress (first 10%)
+        setProgress(Math.round((i / pdf.numPages) * 10))
+      }
 
-      if (!res.ok) throw new Error(data.error || 'Failed to process PDF')
+      // 3. Chunk Text
+      const chunkSize = 3000
+      const chunks: string[] = []
+      for (let i = 0; i < fullText.length; i += chunkSize) {
+        chunks.push(fullText.slice(i, i + chunkSize))
+      }
+
+      setTotalChunks(chunks.length)
+      let totalExtracted = 0
+
+      // 4. Send Chunks One by One
+      for (let i = 0; i < chunks.length; i++) {
+        setCurrentChunk(i + 1)
+        
+        const res = await fetch('/api/admin/process-chunk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chunk: chunks[i],
+            source: source || file.name,
+            extractionPrompt: null // Will use default on server
+          })
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed at chunk ' + (i + 1))
+        
+        totalExtracted += data.count
+        
+        // Progress from 10% to 100%
+        const processingProgress = 10 + Math.round(((i + 1) / chunks.length) * 90)
+        setProgress(processingProgress)
+      }
 
       setSummary({
-        totalExtracted: data.totalExtracted,
-        totalChunks: data.totalChunks
+        totalExtracted,
+        totalChunks: chunks.length
       })
       setStatus('success')
     } catch (err: any) {
+      console.error('Extraction Error:', err)
       setErrorMessage(err.message)
       setStatus('error')
     }
@@ -225,9 +270,11 @@ export default function SettingsPage() {
         {status === 'processing' ? (
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <Loader2 size={32} className="animate-spin" color="#c5ff00" style={{ margin: '0 auto 16px' }} />
-            <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#c5ff00' }}>ANALYZING_PATTERNS_WITH_AI...</p>
+            <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#c5ff00' }}>
+              {progress <= 10 ? 'READING_PDF_LOCALLY...' : `ANALYZING_PATTERNS (${currentChunk}/${totalChunks})...`}
+            </p>
             <div style={styles.progressContainer}>
-              <div style={{ ...styles.progressBar, width: '60%' }}></div>
+              <div style={{ ...styles.progressBar, width: `${progress}%` }}></div>
             </div>
           </div>
         ) : (
