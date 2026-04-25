@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { checkAndIncrementUsage } from '@/lib/usage';
 
 const openai = new OpenAI({
@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const { prompt, platform, tone, length, language, niche } = await req.json();
 
     // --- AUTHENTICATION ---
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'AUTHENTICATION_REQUIRED' }, { status: 401 });

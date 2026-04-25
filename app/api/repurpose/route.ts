@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { createClient } from '@/lib/supabase/server';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -8,6 +7,12 @@ const openai = new OpenAI({
 export async function POST(req: NextRequest) {
   try {
     const { prompt, tone, language, niche } = await req.json();
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'AUTHENTICATION_REQUIRED' }, { status: 401 });
+    }
 
     if (!prompt) {
       return NextResponse.json({ error: 'Long-form script is required' }, { status: 400 });
