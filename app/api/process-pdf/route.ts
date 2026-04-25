@@ -1,6 +1,6 @@
 // Forced rebuild to ensure latest pdf-parse fix is active
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
+import PDFParse from 'pdf-parse';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,11 +23,9 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Extract text from PDF using the new PDFParse API
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
-    let text = result.text;
-    await parser.destroy();
+    // Extract text from PDF using the stable v1.1.1 pdf-parse function
+    const data = await PDFParse(buffer);
+    let text = data.text;
 
     // Clean text
     text = text.replace(/\s+/g, ' ').trim();

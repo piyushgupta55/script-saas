@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
-import { PDFParse } from 'pdf-parse'
+import PDFParse from 'pdf-parse'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -52,10 +52,11 @@ export async function POST(req: NextRequest) {
     let text = ''
     try {
       const arrayBuffer = await file.arrayBuffer()
-      const parser = new PDFParse({ data: arrayBuffer })
-      const textResult = await parser.getText()
-      text = textResult.text
-      await parser.destroy()
+      const buffer = Buffer.from(arrayBuffer)
+      
+      // Use the stable v1.1.1 pdf-parse function
+      const data = await PDFParse(buffer)
+      text = data.text
     } catch (err: any) {
       console.error('PDF Parsing Error:', err)
       return NextResponse.json({ error: `PDF_PARSE_FAILED: ${err.message}` }, { status: 500 })
