@@ -168,6 +168,14 @@ export async function POST(req: NextRequest) {
     Length: ${currentLengthConstraint}. ${languageInstruction}
     Rules: ${rules.join('\n')}
     Structure: ${structures.join('\n')}
+    
+    CRITICAL FORMATTING RULES:
+    1. USE ALL CAPS for the entire script content to maintain high energy.
+    2. USE SCENE BRACKETS to structure the flow (e.g., [OPENING SCREEN], [NEXT], [CUT], [SCENE CHANGE], [FINAL CTA]).
+    3. INJECT RELEVANT EMOJIS frequently to make it visually engaging and "viral".
+    4. USE LONG DASHES "——" to separate distinct thoughts or scene transitions within the text.
+    5. THE CONTENT MUST BE punchy, fast-paced, and optimized for high retention.
+    
     RESPONSE FORMAT: JSON {"hooks": [...], "script": "..."}`;
 
     const generationResponse = await openai.chat.completions.create({

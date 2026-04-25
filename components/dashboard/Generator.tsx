@@ -151,27 +151,24 @@ export default function Generator(props: GeneratorProps) {
               </div>
 
               {/* Script Section */}
-              <div className="output-section script-section">
-                <div className="section-header-row">
-                  <div className="mono text-xs text-primary mb-12">03 // ENGINEERED_SCRIPT_LOGIC</div>
-                  <div className="output-actions">
-                     <button onClick={() => props.copyToClipboard(props.output!.script)} className="mono text-xxs action-btn">
-                       <Copy size={12} /> COPY_SCRIPT
-                     </button>
-                     <button onClick={() => props.copyToClipboard(`HOOKS:\n${props.output!.hooks.join('\n')}\n\nSCRIPT:\n${props.output!.script}`)} className="mono text-xxs action-btn">
-                       <Copy size={12} /> COPY_ALL
-                     </button>
-                  </div>
+              <div className="script-premium-container">
+                <div className="script-premium-header">
+                  <div className="mono text-xxs">DATE: <span className="text-white">{new Date().toLocaleDateString()}</span></div>
+                  <div className="mono text-xxs">PLATFORM: <span className="text-primary">{props.platform.toUpperCase()}</span></div>
                 </div>
-                <div className="script-block-container">
-                  <div className="script-accent-l"></div>
-                  <div className="script-block">
-                    {props.output.script}
-                  </div>
+                
+                <div className="script-premium-body mono">
+                  {props.output.script}
                 </div>
-                <button className="btn-secondary regenerate-btn mono" onClick={props.handleGenerate}>
-                  <RefreshCw size={14} /> RE_ENGINEER_VARIATION
-                </button>
+
+                <div className="script-premium-footer">
+                   <button onClick={props.handleGenerate} className="premium-action-btn">
+                     <RefreshCw size={14} /> REUSE
+                   </button>
+                   <button onClick={() => props.copyToClipboard(props.output!.script)} className="premium-action-btn">
+                     <Copy size={14} /> COPY_SCRIPT
+                   </button>
+                </div>
               </div>
             </div>
           )}
@@ -380,31 +377,53 @@ export default function Generator(props: GeneratorProps) {
         }
         .action-btn:hover { color: var(--primary); border-color: var(--primary); }
 
-        .script-block-container {
+        .script-premium-container {
+          background: #000;
+          border: 1px solid var(--primary);
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
           position: relative;
-          margin-bottom: 32px;
+          box-shadow: 0 0 30px rgba(197, 255, 0, 0.05);
         }
-        .script-accent-l {
-          position: absolute;
-          left: 0; top: 0; bottom: 0;
-          width: 2px;
-          background: var(--primary);
-          opacity: 0.3;
+        .script-premium-header {
+          display: flex;
+          gap: 24px;
+          color: #444;
+          font-weight: 800;
         }
-        .script-block {
+        .text-white { color: #fff; }
+        .script-premium-body {
+          color: #fff;
+          font-size: 1.2rem;
+          line-height: 1.6;
           white-space: pre-wrap;
-          line-height: 1.8;
-          color: #bbb;
-          font-size: 1.1rem;
-          padding-left: 24px;
+          letter-spacing: 0.05em;
+          word-spacing: 0.1em;
         }
-        
-        .regenerate-btn { 
-          width: 100%; 
-          padding: 20px; 
-          font-size: 11px; 
-          letter-spacing: 0.1em;
-          border: 1px dashed var(--border);
+        .script-premium-footer {
+          display: flex;
+          gap: 16px;
+        }
+        .premium-action-btn {
+          background: transparent;
+          border: 1px solid #111;
+          color: #444;
+          padding: 10px 20px;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .premium-action-btn:hover {
+          border-color: #222;
+          color: var(--primary);
+          background: rgba(197, 255, 0, 0.02);
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
