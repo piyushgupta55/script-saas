@@ -1,202 +1,227 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-main);
+  --color-primary: var(--primary);
+}
+
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --primary: #0070f3;
-  --primary-glow: radial-gradient(rgba(0, 112, 243, 0.4), rgba(0, 112, 243, 0));
-  --card-bg: rgba(255, 255, 255, 0.03);
-  --card-border: rgba(255, 255, 255, 0.1);
-  --accent: #ff0080;
-  --accent-glow: radial-gradient(rgba(255, 0, 128, 0.4), rgba(255, 0, 128, 0));
+  --bg-base: #050505;
+  --bg-surface: #111111;
+  --primary: #c5ff00;
+  --primary-muted: rgba(197, 255, 0, 0.1);
+  --border: #222222;
+  --border-active: #333333;
+  --text-main: #e5e5e5;
+  --text-dim: #777777;
 }
 
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+  cursor: crosshair;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
   overflow-x: hidden;
+  background-image: url("https://www.transparenttextures.com/patterns/carbon-fibre.png");
 }
 
-main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4rem 2rem;
-  max-width: 1200px;
+.mono {
+  font-family: var(--font-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* --- RESPONSIVE GRID CONTAINER --- */
+.grid-container {
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-.hero {
-  text-align: center;
-  margin-bottom: 4rem;
+@media (max-width: 1400px) {
+  .grid-container { border: none; }
 }
 
-.hero h1 {
-  font-size: 4rem;
-  font-weight: 800;
-  background: linear-gradient(to right, #fff, #888);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 1rem;
+/* --- SECTION ARCHITECTURE --- */
+.technical-section {
+  padding: clamp(60px, 10vw, 120px) clamp(20px, 5vw, 60px);
+  border-bottom: 1px solid var(--border);
 }
 
-.hero p {
-  font-size: 1.25rem;
-  color: #888;
-  max-width: 600px;
-  margin: 0 auto;
+.section-header {
+  margin-bottom: 60px;
 }
 
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 24px;
-  padding: 2rem;
-  backdrop-filter: blur(10px);
-  width: 100%;
-  max-width: 800px;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+/* --- COMPONENT: PIPELINE TIMELINE --- */
+.pipeline-track {
+  position: relative;
+  padding-left: 40px;
+  border-left: 1px dashed var(--border);
 }
 
-.card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+.pipeline-step {
+  position: relative;
+  margin-bottom: 60px;
 }
 
-.upload-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.upload-zone {
-  border: 2px dashed var(--card-border);
-  border-radius: 16px;
-  padding: 3rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-zone:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--primary);
-}
-
-.btn {
+.pipeline-step::before {
+  content: "";
+  position: absolute;
+  left: -46px;
+  top: 0;
+  width: 12px;
+  height: 12px;
   background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 1rem 2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+}
+
+/* --- COMPONENT: TELEMETRY GRID --- */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.telemetry-item {
+  background: var(--bg-base);
+  padding: 40px;
+  text-align: center;
+}
+
+/* --- COMPONENT: TECHNICAL CARDS --- */
+.technical-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 24px;
+  position: relative;
+  height: 100%;
+}
+
+.technical-card::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 10px; height: 10px;
+  border-top: 1px solid var(--primary);
+  border-right: 1px solid var(--primary);
+}
+
+/* --- BUTTONS (BRUTALIST) --- */
+.btn-brutal {
+  background: var(--primary);
+  color: #000;
+  padding: 12px 24px;
+  text-decoration: none;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  gap: 10px;
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--primary);
+  box-shadow: 4px 4px 0px rgba(197, 255, 0, 0.2);
 }
 
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0, 112, 243, 0.3);
+.btn-brutal:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--primary);
+  background: black;
+  color: var(--primary);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn-brutal:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.results {
-  margin-top: 3rem;
-  width: 100%;
-}
-
-.result-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.result-item {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
-  padding: 1.5rem;
-}
-
-.result-item h3 {
-  margin-bottom: 1rem;
-  color: var(--primary);
-  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  color: #fff;
+  padding: 12px 24px;
+  text-decoration: none;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.result-item ul {
-  list-style: none;
+.btn-secondary:hover {
+  background: var(--border);
+  border-color: var(--text-dim);
+  transform: translateY(-1px);
 }
 
-.result-item li {
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-  color: #ccc;
-  line-height: 1.4;
+
+/* --- UTILITIES --- */
+.text-primary { color: var(--primary); }
+.text-muted { color: #444; }
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 12px; }
+.mb-12 { margin-bottom: 12px; }
+
+/* --- RESPONSIVE UTILITIES --- */
+@media (max-width: 640px) {
+  .btn-brutal, .btn-secondary { width: 100%; justify-content: center; }
 }
 
-.generator {
-  margin-top: 4rem;
-  width: 100%;
-  max-width: 800px;
+/* Base Animations */
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }
 
-textarea {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 1rem;
-  color: white;
-  font-family: inherit;
-  font-size: 1rem;
-  resize: vertical;
-  min-height: 100px;
-  margin-bottom: 1rem;
+.scan-line {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: var(--primary);
+  opacity: 0.2;
+  animation: scan 4s linear infinite;
 }
 
-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
+/* --- ADMIN LAYOUT STYLES --- */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #050505;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #111;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #c5ff00;
 }
 
-.output {
-  margin-top: 2rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 2rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
+/* Global Scan Line (Dynamic) */
+.admin-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #c5ff00;
+  opacity: 0.05;
+  z-index: 50;
+  pointer-events: none;
+  animation: scan-global 10s linear infinite;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s ease forwards;
+@keyframes scan-global {
+  0% { transform: translateY(-100vh); }
+  100% { transform: translateY(100vh); }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabase } from '@/lib/supabase';
+import { checkAndIncrementUsage } from '@/lib/usage';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -8,103 +9,200 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, platform, tone, length, language } = await req.json();
+    const { prompt, platform, tone, length, language, niche } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    // --- AUTHENTICATION ---
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'AUTHENTICATION_REQUIRED' }, { status: 401 });
     }
 
-    // Step 1: Embed the user's prompt for semantic search
-    let queryEmbedding = null;
+    // --- NEW USAGE LIMIT SYSTEM ---
+    const usage = await checkAndIncrementUsage(user.id);
+    if (!usage.allowed) {
+      return NextResponse.json({ 
+        error: 'USAGE_LIMIT_REACHED', 
+        message: usage.error 
+      }, { status: 403 });
+    }
+
+    // --- UPGRADED: QUERY EXPANSION ---
+    let expandedPrompt = prompt;
     try {
-      const embRes = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: prompt,
+      const expansionRes = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a Viral Content Strategist. Expand the user input into a rich description of related keywords, underlying emotions, and viral hooks. Focus on "the hidden meaning" behind the words. Output ONLY the expanded text.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 150,
+        temperature: 0.4,
       });
-      queryEmbedding = embRes.data[0].embedding;
+      expandedPrompt = expansionRes.choices[0].message.content || prompt;
     } catch (e) {
-      console.error('Embedding error in generator:', e);
+      console.error('Query Expansion Error:', e);
     }
 
-    // Step 2: Fetch semantically relevant TOP-TIER knowledge (Targeted by Type)
+    // --- UPGRADED SPEED LAYER: MULTI-EMBEDDING CACHE ---
+    let embeddings = { main: null, hook: null, emotion: null };
+    const promptHash = prompt.trim().toLowerCase();
+    
+    try {
+      const { data: cached } = await supabase
+        .from('embedding_store')
+        .select('emb_main, emb_hook, emb_emotion')
+        .eq('prompt_hash', promptHash)
+        .single();
+      
+      if (cached) {
+        embeddings = {
+          main: cached.emb_main,
+          hook: cached.emb_hook,
+          emotion: cached.emb_emotion
+        };
+      } else {
+        const [mainRes, hookRes, emotionRes] = await Promise.all([
+          openai.embeddings.create({ model: 'text-embedding-3-small', input: expandedPrompt }),
+          openai.embeddings.create({ model: 'text-embedding-3-small', input: `viral hook for: ${expandedPrompt}` }),
+          openai.embeddings.create({ model: 'text-embedding-3-small', input: `emotion in: ${expandedPrompt}` }),
+        ]);
+
+        embeddings = {
+          main: mainRes.data[0].embedding as any,
+          hook: hookRes.data[0].embedding as any,
+          emotion: emotionRes.data[0].embedding as any
+        };
+        
+        supabase.from('embedding_store').insert([{
+          prompt_hash: promptHash,
+          emb_main: embeddings.main,
+          emb_hook: embeddings.hook,
+          emb_emotion: embeddings.emotion,
+          input_text: prompt
+        }]).then(({ error }) => {
+          if (error) console.error('Cache save error:', error);
+        });
+      }
+    } catch (e) {
+      console.error('Speed Layer Error:', e);
+      const [mainRes, hookRes, emotionRes] = await Promise.all([
+        openai.embeddings.create({ model: 'text-embedding-3-small', input: expandedPrompt }),
+        openai.embeddings.create({ model: 'text-embedding-3-small', input: `viral hook for: ${expandedPrompt}` }),
+        openai.embeddings.create({ model: 'text-embedding-3-small', input: `emotion in: ${expandedPrompt}` }),
+      ]);
+      embeddings = {
+        main: mainRes.data[0].embedding as any,
+        hook: hookRes.data[0].embedding as any,
+        emotion: emotionRes.data[0].embedding as any
+      };
+    }
+
+    // --- KNOWLEDGE RETRIEVAL ---
     const category = platform.toLowerCase().includes('reel') || platform.toLowerCase().includes('tiktok') || platform.toLowerCase().includes('short') 
       ? 'short_form' 
       : 'general';
 
     const fetchItems = async (type: string, count: number) => {
-      if (!queryEmbedding) return [];
-      const { data, error } = await supabase.rpc('match_knowledge_items', {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.1,
-        match_count: count * 3, // Fetch more to filter by type
-        p_category: category
+      if (!embeddings.main) return [];
+      const { data, error } = await supabase.rpc('match_knowledge_hybrid', {
+        p_query_main: embeddings.main,
+        p_query_hook: embeddings.hook,
+        p_query_emotion: embeddings.emotion,
+        p_match_count: count * 3,
+        p_category: category,
+        p_niche: niche,
+        p_type: type
       });
+      
       if (error || !data) return [];
-      return data.filter((item: any) => item.type === type).slice(0, count).map((item: any) => item.content);
+      const uniqueStyles: Record<string, any> = {};
+      for (const item of data) {
+        const style = item.hook_style || item.id;
+        if (!uniqueStyles[style]) uniqueStyles[style] = item;
+      }
+      return Object.values(uniqueStyles).slice(0, count);
     };
 
-    const rules = await fetchItems('rule', 10);
-    const structures = await fetchItems('structure', 3);
-    const hooks = await fetchItems('hook', 10);
+    const rawRules = await fetchItems('rule', 5);
+    const rawStructures = await fetchItems('structure', 1);
+    const rawHooks = await fetchItems('hook', 5);
 
-    // Fallback logic remains if everything is empty
-    if (rules.length === 0 && structures.length === 0 && hooks.length === 0) {
-      const { data } = await supabase
-        .from('knowledge_items')
-        .select('type, content')
-        .eq('category', category)
-        .order('quality_score', { ascending: false })
-        .limit(30);
-      
-      const fallback = data || [];
-      rules.push(...fallback.filter(k => k.type === 'rule').map(k => k.content).slice(0, 10));
-      structures.push(...fallback.filter(k => k.type === 'structure').map(k => k.content).slice(0, 3));
-      hooks.push(...fallback.filter(k => k.type === 'hook').map(k => k.content).slice(0, 10));
-    }
+    const rules = rawRules.map((r: any) => r.content);
+    const structures = rawStructures.map((s: any) => s.content);
+    const hooks = rawHooks.map((h: any) => h.content);
 
+    const usedKnowledgeIds = [
+      ...rawRules.map((r: any) => r.id),
+      ...rawStructures.map((s: any) => s.id),
+      ...rawHooks.map((h: any) => h.id)
+    ];
+
+    // --- PLANNING STEP ---
+    const planningResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a World-Class Viral Content Strategist. engineering a script that breaks the "AI Sameness".
+          Return ONLY JSON: { "unique_angle": "...", "persona": "...", "recommended_style": "...", "emotional_angle": "...", "structure_plan": "...", "viral_triggers": [...] }`
+        },
+        { role: 'user', content: `User Input: ${prompt}\n\nKnowledge Context:\n${rules.join('\n')}\n${structures.join('\n')}` }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.8,
+    });
+    
+    const plan = JSON.parse(planningResponse.choices[0].message.content || '{}');
+
+    // --- GENERATION STEP ---
+    const currentLengthConstraint = `Target Length: ${length}`;
     const languageInstruction = language === 'Hinglish' 
-      ? `OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English)
-RULES FOR HINGLISH:
-- Use Roman script only. No Hindi script.
-- Mix Hindi and English naturally (creator style).
-- Example: "Aaj maine ek mistake ki jo shayad tum bhi kar rahe ho..."`
-      : 'OUTPUT LANGUAGE: English (Standard creator style)';
+      ? 'OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English). ROMAN SCRIPT ONLY.'
+      : 'OUTPUT LANGUAGE: English (Sharp, Modern, No Fluff)';
 
-    const systemPrompt = `You are a world-class viral script writer for ${platform}. 
-Your tone is ${tone}. 
-Target length: ${length}.
-${languageInstruction}
+    const systemPrompt = `You are writing as a ${plan.persona}. Target: ${platform}. Tone: ${tone}. 
+    Length: ${currentLengthConstraint}. ${languageInstruction}
+    Rules: ${rules.join('\n')}
+    Structure: ${structures.join('\n')}
+    RESPONSE FORMAT: JSON {"hooks": [...], "script": "..."}`;
 
-WORLD-CLASS WRITING RULES (Top Scored):
-${rules.join('\n') || 'Write engagingly.'}
-
-VIRAL STRUCTURES (Top Scored):
-${structures.join('\n') || 'Standard hook, body, CTA.'}
-
-INSPIRATIONAL HOOKS:
-${hooks.join('\n')}
-
-TASK:
-1. Generate 5 VIRAL HOOK options (Shock, Curiosity, Question, Relatable Pain, Contrarian).
-2. Generate one complete, high-retention SCRIPT.
-
-RESPONSE FORMAT:
-JSON object with {"hooks": {"shock": "...", ...}, "script": "..."}`;
-
-    const response = await openai.chat.completions.create({
+    const generationResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `User Request: ${prompt}` },
+        { role: 'user', content: `Topic: ${prompt}` },
       ],
       response_format: { type: 'json_object' },
+      temperature: 0.85,
     });
 
-    const content = response.choices[0].message.content;
-    if (!content) throw new Error('Empty response from AI');
+    const finalResult = JSON.parse(generationResponse.choices[0].message.content || '{}');
 
-    const result = JSON.parse(content);
-    return NextResponse.json(result);
+    // --- PERFORMANCE FEEDBACK LOOP ---
+    let scriptId = null;
+    try {
+      const { data } = await supabase.from('generated_scripts').insert([{
+        prompt: prompt,
+        platform: platform,
+        tone: tone,
+        length: length,
+        language: language,
+        hooks: finalResult.hooks,
+        script: finalResult.script,
+        unique_angle: plan.unique_angle,
+        persona: plan.persona,
+        hook_style: plan.recommended_style,
+        emotional_angle: plan.emotional_angle,
+        niche: niche,
+        used_knowledge_ids: usedKnowledgeIds
+      }]).select('id').single();
+      if (data) scriptId = data.id;
+    } catch (err) {}
+
+    return NextResponse.json({ ...finalResult, id: scriptId, remaining_credits: usage.remaining });
   } catch (error: any) {
     console.error('Generation error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

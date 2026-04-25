@@ -4,6 +4,7 @@ import { PDFParse } from 'pdf-parse';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('pdf') as File;
+    const niche = formData.get('niche') as string || 'General';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -114,41 +116,44 @@ ${chunk}`,
 
             // Save to knowledge_items table (Atomic with Smart Deduplication & Embeddings)
             if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
-              // Smart Deduplication: Check for similar content
-              const partialContent = item.content.slice(0, 20);
-              const { data: similar } = await supabaseAdmin
-                .from('knowledge_items')
-                .select('id')
-                .ilike('content', `%${partialContent}%`)
-                .limit(1);
+              // GENERATE CONTENT HASH (Permanent Deduplication)
+              const contentHash = crypto.createHash('sha256').update(item.content.trim().toLowerCase()).digest('hex');
 
-              if (!similar || similar.length === 0) {
-                // Minimum Quality Filter: Don't store junk (score < 6)
-                if (finalScore >= 60) {
-                  // Generate Embedding
-                  let embedding = null;
-                  try {
-                    const embRes = await openai.embeddings.create({
-                      model: 'text-embedding-3-small',
-                      input: item.content,
-                    });
-                    embedding = embRes.data[0].embedding;
-                  } catch (e) {
-                    console.error('Embedding error:', e);
-                  }
-
-                  await supabaseAdmin
-                    .from('knowledge_items')
-                    .insert([{
-                      type: item.type,
-                      content: item.content,
-                      category: item.category,
-                      tone: item.tone,
-                      source: item.source || 'uploaded_pdf',
-                      quality_score: finalScore,
-                      embedding: embedding
-                    }]);
+              // MINIMUM QUALITY FILTER (Only strong knowledge survives)
+              if (finalScore >= 60) {
+                // Generate Intent-Aware Multi-Embeddings
+                let embeddings = { main: null, hook: null, emotion: null };
+                try {
+                  const [mainRes, hookRes, emotionRes] = await Promise.all([
+                    openai.embeddings.create({ model: 'text-embedding-3-small', input: item.content }),
+                    openai.embeddings.create({ model: 'text-embedding-3-small', input: `Hook style: ${item.content}` }),
+                    openai.embeddings.create({ model: 'text-embedding-3-small', input: `Emotional impact: ${item.content}` }),
+                  ]);
+                  embeddings = {
+                    main: mainRes.data[0].embedding as any,
+                    hook: hookRes.data[0].embedding as any,
+                    emotion: emotionRes.data[0].embedding as any
+                  };
+                } catch (e) {
+                  console.error('Multi-Embedding error:', e);
                 }
+
+                await supabaseAdmin
+                  .from('knowledge_items')
+                  .upsert([{
+                    content_hash: contentHash,
+                    type: item.type,
+                    content: item.content,
+                    category: item.category,
+                    tone: item.tone,
+                    source: item.source || 'uploaded_pdf',
+                    quality_score: finalScore,
+                    embedding: embeddings.main,
+                    embedding_main: embeddings.main,
+                    embedding_hook: embeddings.hook,
+                    embedding_emotion: embeddings.emotion,
+                    niche: niche
+                  }], { onConflict: 'content_hash' });
               }
             }
 
