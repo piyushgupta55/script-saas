@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Zap, 
   Sparkles, 
@@ -32,6 +32,14 @@ interface GeneratorProps {
 
 export default function Generator(props: GeneratorProps) {
   const [controlsOpen, setControlsOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
     <div className="generator-view">
@@ -108,7 +116,20 @@ export default function Generator(props: GeneratorProps) {
           </div>
 
           <button 
-            className="btn-brutal generate-btn sticky-mobile"
+            className="btn-brutal generate-btn"
+            style={isMobile ? {
+              position: 'fixed',
+              bottom: '24px',
+              left: '24px',
+              right: '24px',
+              width: 'calc(100% - 48px)',
+              zIndex: 9999,
+              display: 'flex',
+              justifyContent: 'center',
+              boxShadow: '0 0 30px rgba(197, 255, 0, 0.4)',
+              padding: '20px',
+              fontSize: '14px'
+            } : {}}
             onClick={props.handleGenerate}
             disabled={props.loading}
           >
@@ -443,11 +464,6 @@ export default function Generator(props: GeneratorProps) {
           .view-header { padding: 16px 20px; }
           .input-column, .output-column { padding: 20px; }
           .main-input { min-height: 200px; }
-          .sticky-mobile {
-            position: sticky;
-            bottom: 24px;
-            z-index: 100;
-          }
           .output-section { padding: 24px; }
         }
       `}</style>
