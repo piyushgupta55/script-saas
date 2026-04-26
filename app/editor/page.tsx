@@ -20,7 +20,7 @@ export default function GeneratorPage() {
   const [length, setLength] = useState('60s');
   const [language, setLanguage] = useState('Hinglish');
   const [loading, setLoading] = useState(false);
-  const [output, setOutput] = useState<{ hooks: string[], script: string } | null>(null);
+  const [output, setOutput] = useState<{ hooks: string[], script: string, applied_knowledge?: { content: string, source: string }[] } | null>(null);
   
   const [apiKey, setApiKey] = useState('');
   const [useUserKey, setUseUserKey] = useState(false);
@@ -52,7 +52,11 @@ export default function GeneratorPage() {
       
       const data = await res.json();
       if (data.script) {
-        const newOutput = { hooks: data.hooks, script: data.script };
+        const newOutput = { 
+          hooks: data.hooks, 
+          script: data.script, 
+          applied_knowledge: data.applied_knowledge 
+        };
         setOutput(newOutput);
         
         const newItem: HistoryItem = {

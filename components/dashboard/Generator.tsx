@@ -235,6 +235,43 @@ export default function Generator(props: GeneratorProps) {
                 </div>
               </div>
 
+              {/* Knowledge Applied Section */}
+              {props.output.applied_knowledge && props.output.applied_knowledge.length > 0 && (
+                <div className="output-section knowledge-section" style={isMobile ? { padding: '24px', marginBottom: '24px' } : { marginBottom: '40px' }}>
+                  <div className="mono text-xs text-primary mb-12" style={{ fontSize: '10px' }}>03 // INTELLIGENCE_SOURCES_APPLIED</div>
+                  <div className="knowledge-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {Array.from(new Set(props.output.applied_knowledge.map(k => k.source))).map((source, i) => (
+                      <div key={i} className="source-badge mono" style={{ 
+                        padding: '4px 10px', 
+                        background: 'rgba(197, 255, 0, 0.1)', 
+                        border: '1px solid var(--primary)',
+                        color: 'var(--primary)',
+                        fontSize: '9px',
+                        borderRadius: '2px',
+                        textTransform: 'uppercase'
+                      }}>
+                        SOURCE: {source}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="applied-rules-list" style={{ marginTop: '16px' }}>
+                    {props.output.applied_knowledge.slice(0, 3).map((rule, i) => (
+                      <div key={i} className="rule-item mono" style={{ 
+                        fontSize: '11px', 
+                        color: '#888', 
+                        padding: '8px 0',
+                        borderBottom: '1px solid #111',
+                        display: 'flex',
+                        gap: '8px'
+                      }}>
+                        <span style={{ color: 'var(--primary)' }}>&gt;</span>
+                        <span>{rule.content}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Script Section */}
               <div className="script-premium-container" style={isMobile ? { padding: '30px 20px', gap: '24px' } : {}}>
                 <div className="script-premium-header">

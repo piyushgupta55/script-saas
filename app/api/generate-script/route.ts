@@ -102,9 +102,14 @@ export async function POST(req: NextRequest) {
     }
 
     // --- KNOWLEDGE RETRIEVAL ---
-    const category = platform.toLowerCase().includes('reel') || platform.toLowerCase().includes('tiktok') || platform.toLowerCase().includes('short') 
-      ? 'short_form' 
-      : 'general';
+    const isShortForm = 
+      platform.toLowerCase().includes('reel') || 
+      platform.toLowerCase().includes('tiktok') || 
+      platform.toLowerCase().includes('short') ||
+      length === '30s' || 
+      length === '60s';
+
+    const category = isShortForm ? 'short_form' : 'general';
 
     const fetchItems = async (type: string, count: number) => {
       if (!embeddings.main) return [];
@@ -114,7 +119,7 @@ export async function POST(req: NextRequest) {
         p_query_emotion: embeddings.emotion,
         p_match_count: count * 3,
         p_category: category,
-        p_niche: niche,
+        p_niche: niche || 'general',
         p_type: type
       });
       
@@ -147,10 +152,12 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are a World-Class Viral Content Strategist. engineering a script that breaks the "AI Sameness".
+          content: `You are a World-Class Viral Content Strategist engineering a script for ${platform}. 
+          Tone: ${tone}. Target Length: ${length}.
+          Break the "AI Sameness" by planning a unique angle and structure.
           Return ONLY JSON: { "unique_angle": "...", "persona": "...", "recommended_style": "...", "emotional_angle": "...", "structure_plan": "...", "viral_triggers": [...] }`
         },
-        { role: 'user', content: `User Input: ${prompt}\n\nKnowledge Context:\n${rules.join('\n')}\n${structures.join('\n')}` }
+        { role: 'user', content: `Topic: ${prompt}\n\nKnowledge Context:\n${rules.join('\n')}\n${structures.join('\n')}` }
       ],
       response_format: { type: 'json_object' },
       temperature: 0.8,
@@ -159,7 +166,12 @@ export async function POST(req: NextRequest) {
     const plan = JSON.parse(planningResponse.choices[0].message.content || '{}');
 
     // --- GENERATION STEP ---
-    const currentLengthConstraint = `Target Length: ${length}`;
+    let wordCountGuideline = "";
+    if (length === '30s') wordCountGuideline = "Target word count: 70-90 words. Keep it extremely fast-paced.";
+    else if (length === '60s') wordCountGuideline = "Target word count: 140-170 words. Balanced pace with a clear middle.";
+    else if (length === 'Long') wordCountGuideline = "Target word count: 600-1000 words. Deep dive, multiple sections, thorough explanation.";
+
+    const currentLengthConstraint = `Target Length: ${length}. ${wordCountGuideline}`;
     const languageInstruction = language === 'Hinglish' 
       ? 'OUTPUT LANGUAGE: Hinglish (Natural Mix of Hindi + English). ROMAN SCRIPT ONLY.'
       : 'OUTPUT LANGUAGE: English (Sharp, Modern, No Fluff)';
@@ -168,13 +180,14 @@ export async function POST(req: NextRequest) {
     Length: ${currentLengthConstraint}. ${languageInstruction}
     Rules: ${rules.join('\n')}
     Structure: ${structures.join('\n')}
+    Structure Plan: ${plan.structure_plan}
     
     CRITICAL FORMATTING RULES:
     1. USE ALL CAPS for the entire script content to maintain high energy.
     2. USE SCENE BRACKETS to structure the flow (e.g., [OPENING SCREEN], [NEXT], [CUT], [SCENE CHANGE], [FINAL CTA]).
     3. INJECT RELEVANT EMOJIS frequently to make it visually engaging and "viral".
     4. USE LONG DASHES "——" to separate distinct thoughts or scene transitions within the text.
-    5. THE CONTENT MUST BE punchy, fast-paced, and optimized for high retention.
+    5. ${length === 'Long' ? 'The content should be detailed, structured, and informative while maintaining engagement.' : 'THE CONTENT MUST BE punchy, fast-paced, and optimized for high retention.'}
     
     RESPONSE FORMAT: JSON {"hooks": [...], "script": "..."}`;
 
@@ -211,7 +224,18 @@ export async function POST(req: NextRequest) {
       if (data) scriptId = data.id;
     } catch (err) {}
 
-    return NextResponse.json({ ...finalResult, id: scriptId, remaining_credits: usage.remaining });
+    const usedKnowledge = [
+      ...rawRules.map((r: any) => ({ content: r.content, source: r.source })),
+      ...rawStructures.map((s: any) => ({ content: s.content, source: s.source })),
+      ...rawHooks.map((h: any) => ({ content: h.content, source: h.source }))
+    ];
+
+    return NextResponse.json({ 
+      ...finalResult, 
+      id: scriptId, 
+      remaining_credits: usage.remaining,
+      applied_knowledge: usedKnowledge 
+    });
   } catch (error: any) {
     console.error('Generation error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
