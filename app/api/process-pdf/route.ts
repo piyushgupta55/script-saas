@@ -114,7 +114,7 @@ ${chunk}`,
             }
 
             // Save to knowledge_items table (Atomic with Smart Deduplication & Embeddings)
-            if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://ochjeurxllofgepawkvy.supabase.co') {
+            if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
               // GENERATE CONTENT HASH (Permanent Deduplication)
               const contentHash = crypto.createHash('sha256').update(item.content.trim().toLowerCase()).digest('hex');
 
@@ -175,27 +175,7 @@ ${chunk}`,
     finalData.structures = Array.from(new Set(finalData.structures));
     finalData.examples = Array.from(new Set(finalData.examples));
 
-    // Save to Supabase (if configured)
     const sessionId = uuidv4();
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your_supabase_url') {
-      const { error } = await supabaseAdmin
-        .from('script_knowledge')
-        .insert([
-          {
-            id: sessionId,
-            hooks: finalData.hooks,
-            rules: finalData.rules,
-            structures: finalData.structures,
-            examples: finalData.examples,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-      
-      if (error) {
-        console.error('Supabase error:', error);
-      }
-    }
-
     return NextResponse.json({ sessionId, data: finalData });
   } catch (error: any) {
     console.error('Processing error:', error);
