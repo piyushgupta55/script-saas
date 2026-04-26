@@ -26,7 +26,7 @@ interface GeneratorProps {
   setLanguage: (v: string) => void;
   loading: boolean;
   handleGenerate: () => void;
-  output: { hooks: string[], script: string } | null;
+  output: { hooks: string[], script: string, applied_knowledge?: { content: string, source: string }[] } | null;
   copyToClipboard: (text: string) => void;
 }
 
