@@ -81,6 +81,12 @@ export default function GeneratorPage() {
     }
   };
 
+  const handleClear = () => {
+    setPrompt('');
+    setOutput(null);
+    setLoading(false);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -93,6 +99,7 @@ export default function GeneratorPage() {
       length={length} setLength={setLength}
       language={language} setLanguage={setLanguage}
       loading={loading} handleGenerate={handleGenerate}
+      handleClear={handleClear}
       output={output} copyToClipboard={copyToClipboard}
     />
   );

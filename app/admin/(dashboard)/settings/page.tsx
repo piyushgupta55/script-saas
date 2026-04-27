@@ -60,41 +60,58 @@ export default function SettingsPage() {
       }
 
       // 3. Chunk Text
-      const chunkSize = 3000
+      const chunkSize = 6000
       const chunks: string[] = []
       for (let i = 0; i < fullText.length; i += chunkSize) {
         chunks.push(fullText.slice(i, i + chunkSize))
       }
 
       setTotalChunks(chunks.length)
-      let totalExtracted = 0
+      let totalExtractedCount = 0
 
-      // 4. Send Chunks One by One
-      for (let i = 0; i < chunks.length; i++) {
-        setCurrentChunk(i + 1)
-        
-        const res = await fetch('/api/admin/process-chunk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chunk: chunks[i],
-            source: source || file.name,
-            extractionPrompt: null // Will use default on server
+      // 4. Send Chunks in Parallel Batches
+      const batchSize = 5
+      for (let i = 0; i < chunks.length; i += batchSize) {
+        const batch = chunks.slice(i, i + batchSize)
+        const batchResults = await Promise.all(
+          batch.map(async (chunk, index) => {
+            const chunkIndex = i + index + 1
+            try {
+              const res = await fetch('/api/admin/process-chunk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chunk,
+                  source: source || file.name,
+                  extractionPrompt: null
+                })
+              })
+
+              const data = await res.json()
+              if (!res.ok || data.success === false) {
+                throw new Error(data.error || `Failed at chunk ${chunkIndex}`)
+              }
+              
+              console.log(`Chunk ${chunkIndex}: Found ${data.found}, Saved ${data.count}`)
+              return data.count || 0
+            } catch (err: any) {
+              console.error(`Error in chunk ${chunkIndex}:`, err)
+              throw err // Re-throw to be caught by the outer try-catch
+            }
           })
-        })
+        )
 
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed at chunk ' + (i + 1))
+        totalExtractedCount += batchResults.reduce((sum, count) => sum + count, 0)
         
-        totalExtracted += data.count
+        const lastInBatch = Math.min(i + batchSize, chunks.length)
+        setCurrentChunk(lastInBatch)
         
-        // Progress from 10% to 100%
-        const processingProgress = 10 + Math.round(((i + 1) / chunks.length) * 90)
+        const processingProgress = 10 + Math.round((lastInBatch / chunks.length) * 90)
         setProgress(processingProgress)
       }
 
       setSummary({
-        totalExtracted,
+        totalExtracted: totalExtractedCount,
         totalChunks: chunks.length
       })
       setStatus('success')

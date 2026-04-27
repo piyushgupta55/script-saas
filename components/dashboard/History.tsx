@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { 
   Archive, 
   Copy, 
@@ -28,6 +29,8 @@ interface HistoryProps {
 }
 
 export default function History(props: HistoryProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return (
     <div className="history-view">
       <div className="view-header">
@@ -64,6 +67,7 @@ export default function History(props: HistoryProps) {
                 </div>
               </div>
               <div className="history-idea mono">{item.idea}</div>
+              
               <div className="history-actions-row">
                 <button onClick={() => { 
                   props.setPrompt(item.idea); 
@@ -74,9 +78,45 @@ export default function History(props: HistoryProps) {
                   <RotateCcw size={12} /> REUSE
                 </button>
                 <button onClick={() => props.copyToClipboard(item.script)} className="mono action-btn">
-                  <Copy size={12} /> COPY_SCRIPT
+                  <Copy size={12} /> COPY
+                </button>
+                <button 
+                  onClick={() => setExpandedId(expandedId === item.id ? null : item.id)} 
+                  className="mono action-btn"
+                  style={{ color: expandedId === item.id ? 'var(--primary)' : '#666', borderColor: expandedId === item.id ? 'var(--primary)' : 'var(--border)' }}
+                >
+                  <FileText size={12} /> {expandedId === item.id ? 'HIDE_SCRIPT' : 'VIEW_FULL_SCRIPT'}
                 </button>
               </div>
+
+              {expandedId === item.id && (
+                <div className="expanded-script-section" style={{
+                  marginTop: '32px',
+                  paddingTop: '32px',
+                  borderTop: '1px solid #111',
+                  animation: 'slideDown 0.3s ease-out'
+                }}>
+                   <div className="mono text-xxs text-primary mb-12">// EXTRACTED_HOOKS</div>
+                   <div className="hooks-preview-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '32px' }}>
+                     {item.hooks && item.hooks.map((h, i) => (
+                       <div key={i} className="hook-preview-item mono text-xs" style={{ color: '#888', borderLeft: '1px solid #222', paddingLeft: '12px' }}>{h}</div>
+                     ))}
+                   </div>
+
+                   <div className="mono text-xxs text-primary mb-12">// ENGINEERED_SCRIPT</div>
+                   <div className="script-full-view mono" style={{ 
+                     background: '#000', 
+                     padding: '24px', 
+                     border: '1px dashed #222', 
+                     fontSize: '13px', 
+                     lineHeight: '1.6',
+                     whiteSpace: 'pre-wrap',
+                     color: '#eee'
+                   }}>
+                     {item.script}
+                   </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -162,12 +202,18 @@ export default function History(props: HistoryProps) {
           justify-content: center;
         }
 
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
         .mono { font-family: 'JetBrains Mono', monospace; }
         .text-xxs { font-size: 10px; }
-        .text-sm { font-size: 14px; }
+        .text-xs { font-size: 14px; }
         .text-primary { color: var(--primary); }
         .text-muted { color: #444; }
         .mb-16 { margin-bottom: 16px; }
+        .mb-12 { margin-bottom: 12px; }
 
         @media (max-width: 768px) {
           .history-view { padding: 24px; }

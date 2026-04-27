@@ -26,6 +26,7 @@ interface GeneratorProps {
   setLanguage: (v: string) => void;
   loading: boolean;
   handleGenerate: () => void;
+  handleClear: () => void;
   output: { hooks: string[], script: string, applied_knowledge?: { content: string, source: string }[] } | null;
   copyToClipboard: (text: string) => void;
 }
@@ -102,10 +103,27 @@ export default function Generator(props: GeneratorProps) {
           <h1 className="mono">00 // LOGIC_ENGINE</h1>
           <p className="mono text-xxs text-muted">SYSTEM_STABILITY: NOMINAL // LATENCY: 12.4ms</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button 
+            onClick={props.handleClear}
+            className="mono text-xxs"
+            style={{
+              background: 'transparent',
+              border: '1px solid #222',
+              color: '#666',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              borderRadius: '2px'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#444'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#666'; }}
+          >
+            [ NEW_ENGINE_RUN ]
+          </button>
           <div className="status-badge">
              <div className="pulse-dot"></div>
-             <span className="mono text-xxs text-primary">AUTO_SAVE: ENABLED</span>
+             <span className="mono text-xxs text-primary">CORE: ACTIVE</span>
           </div>
         </div>
       </div>
